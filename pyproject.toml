@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "aln-img"
+version = "0.1.0"
+description = "Powering image-based deep learning for bam-alignment (genomics)"
+authors = ["Douglas Wu <wckdouglas@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+matplotlib = "^3.5.2"
+pysam = "^0.19.1"
+numpy = "^1.22.4"
+pydantic = "^1.9.1"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.961"
+pytest = "^7.1.2"
+
+[tool.poetry.extras]
+dev = ["mypy"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
