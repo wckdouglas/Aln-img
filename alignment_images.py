@@ -31,7 +31,7 @@ def alignment_images(bam_fn: FilePath, contig: str, start: int, stop: int) -> np
     LOCUS_SIZE = stop - start
     base_2d_img = np.zeros((LOCUS_SIZE, TRUNCATED_READ_DEPTH), dtype=np.int8)
     strand_2d_img = np.zeros((LOCUS_SIZE, TRUNCATED_READ_DEPTH), dtype=np.int8)
-    qual_2d_img = np.zeros((LOCUS_SIZE, TRUNCATED_READ_DEPTH), np.int32)
+    qual_2d_img = np.zeros((LOCUS_SIZE, TRUNCATED_READ_DEPTH), dtype=np.int32)
 
     with pysam.AlignmentFile(bam_fn, "rb") as bam:
         for i, pileupcolumn in enumerate(
