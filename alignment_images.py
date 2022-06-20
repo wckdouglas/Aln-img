@@ -44,19 +44,19 @@ def alignment_images(bam_fn: FilePath, contig: str, start: int, stop: int) -> np
     """
     locus_size = stop - start
     initial_img_shape = (locus_size, TRUNCATED_READ_DEPTH)
-    base_2d_img = np.zeros(shape=initial_img_shape, dtype=np.int16)
-    strand_2d_img = np.zeros(shape=initial_img_shape, dtype=np.int16)
-    qual_2d_img = np.zeros(shape=initial_img_shape, dtype=np.int16)
+    base_2d_img = np.zeros(shape=initial_img_shape, dtype=np.int8)  # this should be in the range of 0 to 3
+    strand_2d_img = np.zeros(shape=initial_img_shape, dtype=np.int8)  # this should be in the range of -1 to 1
+    qual_2d_img = np.zeros(shape=initial_img_shape, dtype=np.int8)  # this should be in the range of 33 to 93
 
     with pysam.AlignmentFile(bam_fn, "rb") as bam:  # type: ignore # pylint: disable=no-member
         for i, pileupcolumn in zip_equal(
             range(locus_size),
             bam.pileup(contig, start, stop, max_depth=TRUNCATED_READ_DEPTH, stepper="all", truncate=True),
         ):
-            strands = [1 if read.alignment.is_forward else 0 for read in pileupcolumn.pileups]  # type: ignore
+            strands = [-1 if read.alignment.is_reverse else 1 for read in pileupcolumn.pileups]  # type: ignore
             n_reads = len(strands)
             base_2d_img[i, :n_reads] += base_encode(pileupcolumn.get_query_sequences())  # type: ignore
-            qual_2d_img[i, :n_reads] += pileupcolumn.get_query_qualities()  # type: ignore
+            qual_2d_img[i, :n_reads] += np.array(pileupcolumn.get_query_qualities())  # type: ignore
             strand_2d_img[i, :n_reads] += strands
     genomic_img = np.stack([base_2d_img.T, qual_2d_img.T, strand_2d_img.T])
     return genomic_img
