@@ -43,7 +43,7 @@ jobs:
         
       - name: type check
         run: |
-          poetry run mypy diploid_contam
+          poetry run mypy pileup_image
 
       - name: formatting
         run: |
