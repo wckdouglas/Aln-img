@@ -24,3 +24,20 @@ class PysamFakeFasta:
 
     def close(self):
         return self
+
+
+class PysamBamFile:
+    def __init__(self, pileup_list):
+        self.pileup_list = pileup_list
+
+    def pileup(self, contig, start, stop):
+        return iter(self.pileup_list)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self
+
+    def close(self):
+        return self

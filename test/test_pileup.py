@@ -1,4 +1,4 @@
-from test import PysamFakeFasta
+from test import PysamBamFile, PysamFakeFasta
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -85,12 +85,10 @@ def test_pileup_images(tmp_path):
         "pileup_image.pileup.pysam.FastaFile"
     ) as mock_fasta:
         mock_fasta.return_value = PysamFakeFasta(seq_dict)
-        mock_bam.return_value.__enter__.return_value.pileup.side_effect = list(pileup_columns.values())
+        mock_bam.return_value = PysamBamFile(pileup_list=list(pileup_columns.values()))
         output_tensor = pileup_images(bam_fn=test_bam, ref_fa_fn=test_fasta, contig="chr1", start=start, stop=stop)
 
     mock_bam.assert_called_once_with(test_bam)
-
-    assert pileup_columns[i].get_query_sequences.assert_called_once()
 
     assert output_tensor.shape == (len(Matrix), len(Nucleotide), 3)
     assert np.all(np.isclose(output_tensor, expected_tensor)), f"{output_tensor}, {expected_tensor}"
