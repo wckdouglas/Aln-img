@@ -1,11 +1,18 @@
 # pylint: disable=no-name-in-module
 # pylint: disable=no-self-argument
 """
-A small module to make alignment images.
-"""
-from __future__ import annotations
+A small module to make pileup images.
 
+Similar to the input for:
+1. Nanocall https://github.com/WGLab/NanoCaller
+2. Clair: https://github.com/HKU-BAL/Clair3
+3. Clairvoyante: https://github.com/aquaskyline/Clairvoyante
+
+"""
+
+import re
 from enum import Enum
+from typing import List, Tuple
 
 import matplotlib.figure
 import matplotlib.pyplot as plt
@@ -18,18 +25,21 @@ TRUNCATED_READ_DEPTH = 50
 
 
 class Matrix(Enum):
+    """
+    Enum encoding the identity of the matrix
+    """
+
     FORWARD_BASE = 0
     REVERSE_BASE = 1
     INSERTION = 2
     DELETION = 3
 
 
-class Strand(Enum):
-    FORWARD = 0
-    REVERSE = 1
-
-
 class Base(Enum):
+    """
+    Enum encoding the acceptable bases
+    """
+
     A = 0
     C = 1
     T = 2
@@ -37,16 +47,67 @@ class Base(Enum):
     N = 4
 
 
+def parse_insertion(insertion_annotation: str) -> Tuple[str, str]:
+    """
+    Parsing pysam pileupe insertion annotations (e.g. A+1T)
+
+    :param str insertion_annotation: string representing the insertion
+    :return: The current base and the inserted sequence
+    :rtype: Tuple[str, str]
+    """
+    current_base = ""
+    insertion_bases = ""
+    matches: Optional[re.Match] = re.search("([ACTGactg])\+[0-9]+([ACTGactg]+)", insertion_annotation)  # type: ignore
+
+    if matches is not None:
+        current_base: str = matches.group(1)  # type: ignore
+        insertion_bases: str = matches.group(2)  # type: ignore
+    else:
+        raise ValueError(f"No insertion pattern {insertion_annotation}")
+    return current_base, insertion_bases
+
+
+def add_base_count(
+    tensor: npt.NDArray[np.float16], base: str, relative_position: int, add_count: float
+) -> npt.NDArray[np.float16]:
+    """
+    adding base count to the forward or reverse base matrix
+
+    :param tensor: The tensor representing the pileup image of a sample
+    :param base: read base to be added to the tensor (A, C, T, G, N, a, c, t, g, n), lowercase represents reverse strand
+    :param relative_position: the genomic position (column) on the tensor the to add a count
+    :param add_count: the number to be added (should be a fraction of the total pileup at this pileup column)
+    :return: tensor with the same size as input tensor
+    :rtype: npt.NDArray[np.float16]
+    """
+    if base.isupper():
+        tensor[Matrix.FORWARD_BASE.value][Base[base.upper()].value][relative_position] += add_count
+    else:
+        tensor[Matrix.REVERSE_BASE.value][Base[base.upper()].value][relative_position] += add_count
+    return tensor
+
+
 @validate_arguments
 def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int, stop: int) -> npt.NDArray[np.float16]:
     """
-    Generate pileup images for a given region, given a bam and fasta reference file
+    Generate pileup images for a given region, given a bam and fasta reference file (adjusted for 50 read max)
+
+    The output image will have 4 channels:
+    1. forward base count
+    2. reverse base count
+    3. insertion count
+    4. deletion count
+
+    Each channel is a matrix with size ( 5 x (stop-start) ),
+    where the rows represent base A, C, G, T, N and columns represents
+    genomic positions
 
     :param bam: BAM file path
+    :param ref_fa_fn: reference fasta file
     :param contig: contig name
     :param start: start position
     :param stop: stop position
-    :return: 3D image (base, qual, strand)
+    :return: 3D image
     :rtype: numpy.ndarray
     """
 
@@ -75,18 +136,22 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
         """
         ref_sequence = ref_fa.fetch(contig, start, stop)
 
+        # Initialize the empty tensor
         genomic_width = stop - start
-        tensor = np.zeros(genomic_width * len(Matrix) * len(Base)).reshape(len(Matrix), len(Base), genomic_width)
+        tensor_size = genomic_width * len(Matrix) * len(Base)
+        tensor: npt.NDArray[np.float16] = np.zeros(tensor_size, dtype=np.float16).reshape(
+            len(Matrix), len(Base), genomic_width
+        )
 
         for pileup_column in bam.pileup(contig, start, stop):
-            ref_position = pileup_column.reference_pos
+            ref_position: int = pileup_column.reference_pos  # type: ignore
 
-            if stop > ref_position >= start:
-                relative_position = ref_position - start
-                ref_base = ref_sequence[relative_position]
-                bases = pileup_column.get_query_sequences(mark_matches=True, add_indels=True)
-                total_aln = len(bases)
-                add_count = 1 / total_aln
+            if start <= ref_position < stop:
+                relative_position = ref_position - start  # the column index on the tensor
+                ref_base = ref_sequence[relative_position]  # reference base at this position
+                bases: List[str] = pileup_column.get_query_sequences(mark_matches=True, add_indels=True)  # type: ignore
+                total_aln = len(bases)  # total alignment at this posiiton
+                add_count = 1 / total_aln  # fraction to be added to each position on the tensor
 
                 for base in bases:
                     if "+" in base:
@@ -105,12 +170,13 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
     return tensor
 
 
-def plot_images(genomic_img):
+def plot_images(genomic_img: npt.NDArray[np.float16]) -> matplotlib.figure.Figure:
     """
     Plot the alignment images.
+
     :param genomic_img: 3D image (base, qual, strand)
-    :return: figure object
-    :rtype: matplotlib.figure.Figure
+    :return: None
+    :rtype: Nonetype
     """
 
     fig = plt.figure(figsize=(10, 10))
@@ -120,3 +186,4 @@ def plot_images(genomic_img):
         plt.colorbar(img)
         ax_i.set_title(list(Matrix.__members__.keys())[i])
     fig.tight_layout()
+    return fig
