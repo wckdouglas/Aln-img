@@ -1,5 +1,5 @@
-from test import PysamFakeBam, PysamFakeFasta, mock_alignment, mock_bam_header
-from unittest.mock import patch
+from test import PysamFakeFasta
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -58,16 +58,39 @@ def test_add_base_count(base, rel_pos, added_position):
 
 def test_pileup_images(tmp_path):
     # TODO: not testing
+    start = 2
+    stop = 5
     test_bam = tmp_path / "bam"
     test_bam.write_text("test")
     test_fasta = tmp_path / "fasta"
     test_fasta.write_text("test")
 
-    seq_dict = {"chr1": "ACTGACTGACTG"}
-    contig_list = [(k, len(v)) for k, v in seq_dict.items()]
-    mock_header = mock_bam_header(contig_list)
+    pileup_columns = {}
+    bases = [["T", "T", "t", "t+1A"], ["G", "G", "*", "g", "a"], ["T", "t", "a"]]
+    for i in range(3):
+        pileup_columns[i] = MagicMock(reference_pos=i + start)
+        pileup_columns[i].get_query_sequences.return_value = bases[i]
+
+    expected_tensor = np.array(
+        [
+            [[0, 0, 0], [0, 0, 0], [0, 2, 0], [2, 0, 1], [0, 0, 0]],  # forward A, C, G, T, N
+            [[0, 1, 1], [0, 0, 0], [0, 1, 0], [2, 0, 1], [0, 0, 0]],  # reverse a, c, g, t, n
+            [[1, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],  # insertion
+            [[0, 0, 0], [0, 0, 0], [0, 1, 0], [0, 0, 0], [0, 0, 0]],
+        ]
+    )
+
+    seq_dict = {"chr1": "ACTGACT"}
     with patch("pileup_image.pileup.pysam.AlignmentFile") as mock_bam, patch(
         "pileup_image.pileup.pysam.FastaFile"
     ) as mock_fasta:
-        mock_fasta.__enter__.return_value = PysamFakeFasta(seq_dict)
-        pileup_images(test_bam, test_fasta, contig="chr1", start=2, stop=5)
+        mock_fasta.return_value = PysamFakeFasta(seq_dict)
+        mock_bam.return_value.__enter__.return_value.pileup.side_effect = list(pileup_columns.values())
+        output_tensor = pileup_images(bam_fn=test_bam, ref_fa_fn=test_fasta, contig="chr1", start=start, stop=stop)
+
+    mock_bam.assert_called_once_with(test_bam)
+
+    assert pileup_columns[i].get_query_sequences.assert_called_once()
+
+    assert output_tensor.shape == (len(Matrix), len(Nucleotide), 3)
+    assert np.all(np.isclose(output_tensor, expected_tensor)), f"{output_tensor}, {expected_tensor}"
