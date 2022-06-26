@@ -3,6 +3,20 @@ from collections import OrderedDict
 import pysam
 
 
+class PysamFakeFasta:
+    def __init__(self, seq_dict):
+        """
+        seq_dict: {"chr1": "ACTGACTG"}
+        """
+        self.seq_dict = seq_dict
+
+    def fetch(self, contig, start, stop=None):
+        if stop:
+            return self.seq_dict[contig][start:stop]
+        else:
+            return self.seq_dict[contig][start]
+
+
 class PysamFakeBam:
     def __init__(self, header, reads):
         """

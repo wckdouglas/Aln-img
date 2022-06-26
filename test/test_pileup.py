@@ -1,8 +1,11 @@
+from test import PysamFakeBam, PysamFakeFasta, mock_alignment, mock_bam_header
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 
 from pileup_image.models import Matrix, Nucleotide
-from pileup_image.pileup import add_base_count, parse_insertion
+from pileup_image.pileup import add_base_count, parse_insertion, pileup_images
 
 
 @pytest.mark.parametrize(
@@ -51,3 +54,19 @@ def test_add_base_count(base, rel_pos, added_position):
 
     x, y, z = added_position
     assert tensor[x, y, z] == 1
+
+
+def test_pileup_images(tmp_path):
+    test_bam = tmp_path / "bam"
+    test_bam.write_text("test")
+    test_fasta = tmp_path / "fasta"
+    test_fasta.write_text("test")
+
+    seq_dict = {"chr1": "ACTGACTGACTG"}
+    contig_list = [(k, len(v)) for k, v in seq_dict.items()]
+    mock_header = mock_bam_header(contig_list)
+    with patch("pileup_image.pileup.pysam.AlignmentFile") as mock_bam, patch(
+        "pileup_image.pileup.pysam.FastaFile"
+    ) as mock_fasta:
+        mock_fasta.__enter__.return_value = PysamFakeFasta(seq_dict)
+        pileup_images(test_bam, test_fasta, contig="chr1", start=2, stop=5)
