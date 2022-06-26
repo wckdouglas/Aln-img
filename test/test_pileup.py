@@ -57,6 +57,7 @@ def test_add_base_count(base, rel_pos, added_position):
 
 
 def test_pileup_images(tmp_path):
+    # TODO: not testing
     test_bam = tmp_path / "bam"
     test_bam.write_text("test")
     test_fasta = tmp_path / "fasta"
