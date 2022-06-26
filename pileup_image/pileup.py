@@ -11,40 +11,14 @@ Similar to the input for:
 """
 
 import re
-from enum import Enum
 from typing import List, Tuple
 
-import matplotlib.figure
-import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pysam
 from pydantic import FilePath, validate_arguments
 
-TRUNCATED_READ_DEPTH = 50
-
-
-class Matrix(Enum):
-    """
-    Enum encoding the identity of the matrix
-    """
-
-    FORWARD_BASE = 0
-    REVERSE_BASE = 1
-    INSERTION = 2
-    DELETION = 3
-
-
-class Base(Enum):
-    """
-    Enum encoding the acceptable bases
-    """
-
-    A = 0
-    C = 1
-    T = 2
-    G = 3
-    N = 4
+from pileup_image.models import TRUNCATED_READ_DEPTH, Matrix, Nucleotide
 
 
 def parse_insertion(insertion_annotation: str) -> Tuple[str, str]:
@@ -57,11 +31,14 @@ def parse_insertion(insertion_annotation: str) -> Tuple[str, str]:
     """
     current_base = ""
     insertion_bases = ""
-    matches: Optional[re.Match] = re.search("([ACTGactg])\+[0-9]+([ACTGactg]+)", insertion_annotation)  # type: ignore
+    matches: Optional[re.Match] = re.search("([ACTGNactgn])\+([0-9]+)([ACTGNactgn]+)", insertion_annotation)  # type: ignore
 
     if matches is not None:
         current_base: str = matches.group(1)  # type: ignore
-        insertion_bases: str = matches.group(2)  # type: ignore
+        number_base_insertion: int = int(matches.group(2))
+        insertion_bases: str = matches.group(3)  # type: ignore
+        if len(insertion_bases) != number_base_insertion:
+            raise ValueError(f"Insertion base is wrong: {insertion_annotation}")
     else:
         raise ValueError(f"No insertion pattern {insertion_annotation}")
     return current_base, insertion_bases
@@ -81,9 +58,9 @@ def add_base_count(
     :rtype: npt.NDArray[np.float16]
     """
     if base.isupper():
-        tensor[Matrix.FORWARD_BASE.value][Base[base.upper()].value][relative_position] += add_count
+        tensor[Matrix.FORWARD_BASE.value][Nucleotide[base.upper()].value][relative_position] += add_count
     else:
-        tensor[Matrix.REVERSE_BASE.value][Base[base.upper()].value][relative_position] += add_count
+        tensor[Matrix.REVERSE_BASE.value][Nucleotide[base.upper()].value][relative_position] += add_count
     return tensor
 
 
@@ -138,9 +115,9 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
 
         # Initialize the empty tensor
         genomic_width = stop - start
-        tensor_size = genomic_width * len(Matrix) * len(Base)
+        tensor_size = genomic_width * len(Matrix) * len(Nucleotide)
         tensor: npt.NDArray[np.float16] = np.zeros(tensor_size, dtype=np.float16).reshape(
-            len(Matrix), len(Base), genomic_width
+            len(Matrix), len(Nucleotide), genomic_width
         )
 
         for pileup_column in bam.pileup(contig, start, stop):
@@ -158,32 +135,13 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
                         current_base, insertion_bases = parse_insertion(base)
                         tensor = add_base_count(tensor, current_base, relative_position, add_count)
                         for insertion_position, insertion_base in enumerate(insertion_bases):
-                            base_index = Base[insertion_base.upper()].value
+                            base_index = Nucleotide[insertion_base.upper()].value
                             position_index = insertion_position + relative_position
                             tensor[Matrix.INSERTION.value][base_index][position_index] += add_count
                     elif base == "*":
-                        base_index = Base[ref_base.upper()].value
+                        base_index = Nucleotide[ref_base.upper()].value
                         tensor[Matrix.DELETION.value][base_index][relative_position] += add_count
-                    elif base.upper() in Base.__members__:
+                    elif base.upper() in Nucleotide.__members__:
                         tensor = add_base_count(tensor, base, relative_position, add_count)
                 tensor[:, :, relative_position] *= min(total_aln, TRUNCATED_READ_DEPTH)
     return tensor
-
-
-def plot_images(genomic_img: npt.NDArray[np.float16]) -> matplotlib.figure.Figure:
-    """
-    Plot the alignment images.
-
-    :param genomic_img: 3D image (base, qual, strand)
-    :return: None
-    :rtype: Nonetype
-    """
-
-    fig = plt.figure(figsize=(10, 10))
-    for i in range(genomic_img.shape[0]):
-        ax_i = fig.add_subplot(len(Matrix), 1, i + 1)
-        img = ax_i.imshow(genomic_img[i], aspect="auto")
-        plt.colorbar(img)
-        ax_i.set_title(list(Matrix.__members__.keys())[i])
-    fig.tight_layout()
-    return fig

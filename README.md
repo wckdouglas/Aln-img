@@ -1,4 +1,4 @@
-# Aln-img #
+# pileup_image #
 
 Generating pileup images from bam file for deep learning input
 
