@@ -1,0 +1,51 @@
+name: poetry CI
+
+on:
+  push:
+    branches: 
+      - '**'
+  pull_request:
+    branches: 
+      - '**'
+
+jobs:
+  build:
+    name: CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9.7
+
+      - name: Install poetry
+        uses: Gr1N/setup-poetry@v4
+        with:
+          poetry-version: 1.1.4
+
+      - name: Install dependencies
+        run: |
+          poetry install -E dev
+
+      - name: Install package
+        run: |
+          poetry run python setup.py install
+
+      - name: Unit test
+        run: |
+          poetry run coverage run -m pytest -l  -rPap -vvv -p no:warnings  --cov-report term-missing --cov-report html --cov .
+        
+      - name: type check
+        run: |
+          poetry run mypy diploid_contam
+
+      - name: formatting
+        run: |
+          poetry run black --check .
+          poetry run isort --check .
