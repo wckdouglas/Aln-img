@@ -1,3 +1,8 @@
+from collections import OrderedDict
+
+import pysam
+
+
 class PysamFakeBam:
     def __init__(self, header, reads):
         """
