@@ -45,8 +45,8 @@ def parse_insertion(insertion_annotation: str) -> Tuple[str, str]:
 
 
 def add_base_count(
-    tensor: npt.NDArray[np.float16], base: str, relative_position: int, add_count: float
-) -> npt.NDArray[np.float16]:
+    tensor: npt.NDArray[np.float64], base: str, relative_position: int, add_count: float
+) -> npt.NDArray[np.float64]:
     """
     adding base count to the forward or reverse base matrix
 
@@ -65,7 +65,7 @@ def add_base_count(
 
 
 @validate_arguments
-def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int, stop: int) -> npt.NDArray[np.float16]:
+def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int, stop: int) -> npt.NDArray[np.float64]:
     """
     Generate pileup images for a given region, given a bam and fasta reference file (adjusted for 50 read max)
 
@@ -116,7 +116,7 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
         # Initialize the empty tensor
         genomic_width = stop - start
         tensor_size = genomic_width * len(Matrix) * len(Nucleotide)
-        tensor: npt.NDArray[np.float16] = np.zeros(tensor_size, dtype=np.float16).reshape(
+        tensor: npt.NDArray[np.float64] = np.zeros(tensor_size, dtype=np.float64).reshape(
             len(Matrix), len(Nucleotide), genomic_width
         )
 
@@ -128,7 +128,7 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
                 ref_base = ref_sequence[relative_position]  # reference base at this position
                 bases: List[str] = pileup_column.get_query_sequences(mark_matches=True, add_indels=True)  # type: ignore
                 total_aln = len(bases)  # total alignment at this posiiton
-                add_count = 0 if total_aln ==0 else 1 / total_aln  # fraction to be added to each position on the tensor
+                add_count = 0 if total_aln == 0 else 1 / total_aln  # fraction to be added to each position on the tensor
 
                 for base in bases:
                     if "+" in base:

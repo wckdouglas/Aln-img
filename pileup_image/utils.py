@@ -6,7 +6,7 @@ import numpy.typing as npt
 from pileup_image.models import Matrix, Nucleotide
 
 
-def plot_images(genomic_img: npt.NDArray[np.float16]) -> matplotlib.figure.Figure:
+def plot_images(genomic_img: npt.NDArray[np.float64]) -> matplotlib.figure.Figure:
     """
     Plot the alignment images.
 
