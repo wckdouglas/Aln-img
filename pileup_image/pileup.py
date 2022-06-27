@@ -128,7 +128,7 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
                 ref_base = ref_sequence[relative_position]  # reference base at this position
                 bases: List[str] = pileup_column.get_query_sequences(mark_matches=True, add_indels=True)  # type: ignore
                 total_aln = len(bases)  # total alignment at this posiiton
-                add_count = 1 / total_aln  # fraction to be added to each position on the tensor
+                add_count = 0 if total_aln ==0 else 1 / total_aln  # fraction to be added to each position on the tensor
 
                 for base in bases:
                     if "+" in base:
