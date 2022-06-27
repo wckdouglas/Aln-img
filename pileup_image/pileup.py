@@ -88,7 +88,7 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
     :rtype: numpy.ndarray
     """
 
-    with pysam.AlignmentFile(bam_fn) as bam, pysam.FastaFile(ref_fa_fn.as_posix()) as ref_fa:
+    with pysam.AlignmentFile(bam_fn.as_posix()) as bam, pysam.FastaFile(ref_fa_fn.as_posix()) as ref_fa:
         """
         from pysam:
 
