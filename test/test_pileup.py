@@ -87,7 +87,5 @@ def test_pileup_images(tmp_path):
         mock_bam.return_value = PysamBamFile(pileup_list=list(pileup_columns.values()))
         output_tensor = pileup_images(bam_fn=test_bam, ref_fa_fn=test_fasta, contig="chr1", start=start, stop=stop)
 
-    mock_bam.assert_called_once_with(test_bam)
-
     assert output_tensor.shape == (len(Matrix), len(Nucleotide), 3)
     assert np.all(np.isclose(output_tensor, expected_tensor)), f"{output_tensor}, {expected_tensor}"
