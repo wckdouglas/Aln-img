@@ -1,5 +1,7 @@
 # pileup_image #
 
+[![poetry CI](https://github.com/wckdouglas/Aln-img/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wckdouglas/Aln-img/actions/workflows/ci.yml)
+
 Generating pileup images from bam file for deep learning input
 
 
