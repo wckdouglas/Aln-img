@@ -231,6 +231,11 @@ def make_img(metadata: pd.DataFrame, img_path: Path, bam_path: Path):
     LS1383149	GBA	gene	SQ39684	RU19707	RU19707_SQ39684	4	1459.695299	138.0	1051	38	100167	13
     LS1383149	GBA	pseudogene	SQ39685	RU19707	RU19707_SQ39685	0	788.558789	139.0	10179	27	55300	132
     LS1374913	GBA	gene	SQ39686	RU19707	RU19707_SQ39686	5	1503.974887	142.0	224	7	101550
+
+
+    :param metadata: pandas data frame describing the training samples, (genic, sample_id, gene_name)
+    :param img_path: where the output images will be stored
+    :param bam_path: the bam file parent path
     """
     ref_fasta = "/locus/home/dwu/reference/human_g1k_v37.fasta"
     for gene, gene_df in metadata.query("mean_amplicon_coverage>50").groupby("gene_name"):
