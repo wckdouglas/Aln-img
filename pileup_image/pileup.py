@@ -128,7 +128,9 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
                 ref_base = ref_sequence[relative_position]  # reference base at this position
                 bases: List[str] = pileup_column.get_query_sequences(mark_matches=True, add_indels=True)  # type: ignore
                 total_aln = len(bases)  # total alignment at this posiiton
-                add_count = 0 if total_aln == 0 else 1 / total_aln  # fraction to be added to each position on the tensor
+                add_count = (
+                    0 if total_aln == 0 else 1 / total_aln
+                )  # fraction to be added to each position on the tensor
 
                 for base in bases:
                     if "+" in base:
@@ -144,4 +146,4 @@ def pileup_images(bam_fn: FilePath, ref_fa_fn: FilePath, contig: str, start: int
                     elif base.upper() in Nucleotide.__members__:
                         tensor = add_base_count(tensor, base, relative_position, add_count)
                 tensor[:, :, relative_position] *= min(total_aln, TRUNCATED_READ_DEPTH)
-    return tensor
+    return np.rint(tensor)
